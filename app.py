@@ -1,16 +1,36 @@
 from flask import Flask, request, jsonify, render_template
 import pickle
 import os
+import gdown
 
 # Initialize the Flask app
 app = Flask(__name__)
 
-# Define the paths for the models and vectorizer
-logistic_model_path = os.getenv("LOGISTIC_MODEL_PATH", "/home/chinmay/Desktop/Projects Resume/Twitter sentiment/logistic_regression_model.pkl")
-naive_bayes_model_path = os.getenv("NAIVE_BAYES_MODEL_PATH", "/home/chinmay/Desktop/Projects Resume/Twitter sentiment/naive_bayes_model.pkl")
-vectorizer_path = os.getenv("VECTORIZER_PATH", "/home/chinmay/Desktop/Projects Resume/Twitter sentiment/count_vectorizer.pkl")
+# Google Drive URLs for models and vectorizer
+logistic_model_url = "https://drive.google.com/uc?export=download&id=1se-oijE0oVTdrDn9nzLw8UriwI3uUJWs"
+naive_bayes_model_url = "https://drive.google.com/uc?export=download&id=1FxWHsYiG8sDFXdYz__e4n1oyl0GMeU7m"
+vectorizer_url = "https://drive.google.com/uc?export=download&id=12UkcLB_7R3kc-YYQghSGsXX1k_wi2E36"
 
-# Load both models and vectorizer
+# Local file paths for downloaded files
+logistic_model_path = 'logistic_regression_model.pkl'
+naive_bayes_model_path = 'naive_bayes_model.pkl'
+vectorizer_path = 'count_vectorizer.pkl'
+
+# Function to download files from Google Drive
+def download_file(url, output):
+    gdown.download(url, output, quiet=False)
+
+# Download files if they do not exist
+if not os.path.exists(logistic_model_path):
+    download_file(logistic_model_url, logistic_model_path)
+
+if not os.path.exists(naive_bayes_model_path):
+    download_file(naive_bayes_model_url, naive_bayes_model_path)
+
+if not os.path.exists(vectorizer_path):
+    download_file(vectorizer_url, vectorizer_path)
+
+# Load models and vectorizer
 try:
     logistic_model = pickle.load(open(logistic_model_path, "rb"))
     naive_bayes_model = pickle.load(open(naive_bayes_model_path, "rb"))
@@ -20,26 +40,21 @@ except Exception as e:
 
 @app.route('/')
 def index():
-    # Serve the main page with a form for text input and model selection
     return render_template('index.html')
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    # Extract data from POST request
     data = request.get_json()
     text = data.get('text')
     model_choice = data.get('model')
 
-    # Validate input data
     if not text:
         return jsonify({'error': 'No text provided'}), 400
     if not model_choice:
         return jsonify({'error': 'No model selected'}), 400
 
-    # Preprocess the text input
     transformed_text = vectorizer.transform([text])
 
-    # Choose the model based on the request
     if model_choice == 'logistic':
         prediction = logistic_model.predict(transformed_text)
         model_used = "Logistic Regression"
@@ -49,12 +64,8 @@ def predict():
     else:
         return jsonify({'error': 'Invalid model selected'}), 400
 
-    # Determine the sentiment from the prediction
     sentiment = "Positive" if prediction == 1 else "Negative"
-
-    # Return the prediction as a JSON response
     return jsonify({'sentiment': sentiment, 'model_used': model_used})
 
 if __name__ == '__main__':
-    # Run the app
     app.run(debug=True)
